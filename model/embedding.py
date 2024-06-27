@@ -49,11 +49,6 @@ class FNetEmbedding(nn.Module):
         self.sin_pos_embed = SinusoidalPositionEmbedding(max_seq_len, embed_dim)
         self.layernorm = nn.LayerNorm(embed_dim, eps=1e-12)
         self.embed_dropout = nn.Dropout(p=embed_drop_prob)
-        self.reset_parameters()
-
-    def reset_parameters(self) -> None:
-        init.uniform_(self.token_embed.weight, a=-0.1, b=0.1)
-        init.uniform_(self.pos_embed.weight, a=-0.1, b=0.1)
     
     def forward(self, input: Tensor) -> Tensor:
         token_embed = self.token_embed(input)

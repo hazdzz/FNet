@@ -9,7 +9,7 @@ class FourierTransform(nn.Module):
     def __init__(self) -> None:
         super(FourierTransform, self).__init__()
 
-    def forward(self, input) -> Tensor:
+    def forward(self, input: Tensor) -> Tensor:
         return torch.fft.fft2(input, dim=(-2, -1)).real
     
 
@@ -28,7 +28,7 @@ class FeedForward(nn.Module):
         init.kaiming_normal_(self.linear_layer1.weight, a=0, mode='fan_in', nonlinearity='relu')
         init.kaiming_normal_(self.linear_layer2.weight, a=0, mode='fan_in', nonlinearity='relu')
 
-    def forward(self, input) -> Tensor:
+    def forward(self, input: Tensor) -> Tensor:
         input_linear = self.linear_layer1(input)
         input_linear = self.gelu(input_linear)
         input_linear = self.ffn_dropout(input_linear)
@@ -37,13 +37,14 @@ class FeedForward(nn.Module):
         return ffn_output
 
 
+# Based on my tests, using PreLayerNorm in FNet results in exploding gradients.
 class PostLayerNorm(nn.Module):
     def __init__(self, dim, func) -> None:
         super(PostLayerNorm, self).__init__()
         self.layernorm = nn.LayerNorm(dim, eps=1e-12)
         self.func = func
     
-    def forward(self, input, **kwargs) -> Tensor:
+    def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.layernorm(self.func(input, **kwargs) + input)
     
 
@@ -57,7 +58,7 @@ class FNet(nn.Module):
                 PostLayerNorm(args.embed_size, FeedForward(args.embed_size, args.hidden_size, args.ffn_drop_prob))
             ]))
     
-    def forward(self, input) -> Tensor:
+    def forward(self, input: Tensor) -> Tensor:
         for fourier, ffn in self.fnet_block:
             input = fourier(input)
             input = ffn(input)

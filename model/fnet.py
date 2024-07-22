@@ -37,11 +37,10 @@ class FeedForward(nn.Module):
         return ffn_output
 
 
-# Based on my tests, using PreLayerNorm in FNet results in exploding gradients.
 class PostLayerNorm(nn.Module):
     def __init__(self, dim, func) -> None:
         super(PostLayerNorm, self).__init__()
-        self.layernorm = nn.LayerNorm(dim, eps=1e-12)
+        self.layernorm = nn.LayerNorm(dim)
         self.func = func
     
     def forward(self, input: Tensor, **kwargs) -> Tensor:

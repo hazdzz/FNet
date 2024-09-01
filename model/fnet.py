@@ -5,34 +5,32 @@ import torch.nn.init as init
 from torch import Tensor
 
 
-class FourierTransform(nn.Module):
+class IdentityFFTConv2D(nn.Module):
     def __init__(self) -> None:
-        super(FourierTransform, self).__init__()
+        super(IdentityFFTConv2D, self).__init__()
 
     def forward(self, input: Tensor) -> Tensor:
         return torch.fft.fft2(input, dim=(-2, -1)).real
     
 
-class FeedForward(nn.Module):
+class FeedForwardNetwork(nn.Module):
     def __init__(self, feat_dim, hid_dim, ffn_drop_prob) -> None:
-        super(FeedForward, self).__init__()
-        self.feat_dim = feat_dim
-        self.linear_layer1 = nn.Linear(in_features=feat_dim, out_features=hid_dim, bias=True)
-        self.linear_layer2 = nn.Linear(in_features=hid_dim, out_features=feat_dim, bias=True)
-        self.gelu = nn.GELU()
-        self.ffn_dropout = nn.Dropout(p=ffn_drop_prob)
+        super(FeedForwardNetwork, self).__init__()
+        self.ffn = nn.Sequential(
+            nn.Linear(in_features=feat_dim, out_features=hid_dim, bias=True),
+            nn.GELU(),
+            nn.Dropout(p=ffn_drop_prob),
+            nn.Linear(in_features=hid_dim, out_features=feat_dim, bias=True)
+        )
 
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        init.kaiming_normal_(self.linear_layer1.weight, a=0, mode='fan_in', nonlinearity='relu')
-        init.kaiming_normal_(self.linear_layer2.weight, a=0, mode='fan_in', nonlinearity='relu')
+        init.kaiming_normal_(self.ffn[0].weight, a=0, mode='fan_in', nonlinearity='leaky_relu')
+        init.kaiming_normal_(self.ffn[3].weight, a=0, mode='fan_in', nonlinearity='leaky_relu')
 
     def forward(self, input: Tensor) -> Tensor:
-        input_linear = self.linear_layer1(input)
-        input_linear = self.gelu(input_linear)
-        input_linear = self.ffn_dropout(input_linear)
-        ffn_output = self.linear_layer2(input_linear)
+        ffn_output = self.ffn(input)
 
         return ffn_output
 
@@ -53,8 +51,8 @@ class FNet(nn.Module):
         self.fnet_block = nn.ModuleList([])
         for _ in range(args.num_block):
             self.fnet_block.append(nn.ModuleList([
-                PostLayerNorm(args.embed_size, FourierTransform()),
-                PostLayerNorm(args.embed_size, FeedForward(args.embed_size, args.hidden_size, args.ffn_drop_prob))
+                PostLayerNorm(args.embed_size, IdentityFFTConv2D()),
+                PostLayerNorm(args.embed_size, FeedForwardNetwork(args.embed_size, args.hidden_size, args.ffn_drop_prob))
             ]))
     
     def forward(self, input: Tensor) -> Tensor:
